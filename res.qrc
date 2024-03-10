@@ -1,0 +1,10 @@
+<RCC>
+    <qresource prefix="/">
+        <file>res/layers.png</file>
+        <file>res/redo.png</file>
+        <file>res/undo.png</file>
+        <file>res/tiaosepan.png</file>
+        <file>res/icon.jpg</file>
+        <file>res/mainwindow.jpg</file>
+    </qresource>
+</RCC>
