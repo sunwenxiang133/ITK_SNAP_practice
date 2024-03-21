@@ -1,0 +1,2 @@
+D:/Users/chillin/Documents/code/Qt/build-ITK-SNAP-Desktop_Qt_6_6_1_MinGW_64_bit-Debug/debug/qrc_res.cpp
+D:/Users/chillin/Documents/code/Qt/build-ITK-SNAP-Desktop_Qt_6_6_1_MinGW_64_bit-Debug/debug/main.o

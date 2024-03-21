@@ -6,5 +6,6 @@
         <file>res/tiaosepan.png</file>
         <file>res/icon.jpg</file>
         <file>res/mainwindow.jpg</file>
+        <file>res/recentPath.txt</file>
     </qresource>
 </RCC>

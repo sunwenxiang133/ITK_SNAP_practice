@@ -12,13 +12,17 @@
 #include <QStatusBar>
 #include <QHBoxLayout>
 #include <QPixmap>
+#include <QFile>
+#include <QTextStream>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
 {
+    // NOTE:初始化UI文件，并把他挂在实例上
     ui->setupUi(this);
 
+    // NOTE:因为继承自QMainWindow，所以setWindowTitle之类的方法都可以使用
     //标题
     setWindowTitle("ITK-SNAP");
     setWindowIcon(QIcon(":/res/icon.jpg"));
@@ -33,18 +37,50 @@ MainWindow::MainWindow(QWidget *parent)
     QMenu * helpMenu = bar -> addMenu("Help");
     QFont menuFont("Arial",15);
     bar -> setFont(menuFont);
+
     //菜单项
+    // QFont menuFont("Arial",15);
     fileMenu -> setFont(menuFont);
     editMenu -> setFont(menuFont);
     segMenu -> setFont(menuFont);
     workMenu -> setFont(menuFont);
     toolMenu -> setFont(menuFont);
     helpMenu -> setFont(menuFont);
+
     //fileMenu
-    fileMenu -> addAction("Open Main Image ... Ctrl+G");
-    fileMenu -> addAction("Recent Main Images");
+    //fileMenu -> addAction("Recent Main Images");
+    //历史记录保存
+    // NB:这里千万别写QStringList historyPath了,否则相当于内部的变量了，mainwindow的函数也根本访问不到
+    historyPath=(QStringList());
+    // MainWindow::writeFile(historyPath);
+    MainWindow::readFile();
+    recentMainImages=new QMenu(tr("Recent Main Images"),this);
+
+
+
+    //fileMenu -> addAction("Open Main Image ...");
+    QAction *openImagesAction=new QAction(tr("Open Main Image ..."),this);
+    openImagesAction->setShortcut(QKeySequence("Ctrl+G"));
+    connect(openImagesAction,&QAction::triggered,this,&MainWindow::on_openImagesAction_clicked);
+    fileMenu->addAction(openImagesAction);
+
+    fileMenu->addMenu(recentMainImages);
+
+
+    for(int i=0;i<historyPath.size();++i){
+        // NOTE:注意这里不用tr() 这个是转换为字符串的过程
+        QAction *recentFilePath=new QAction(historyPath.at(i),this);
+        recentFilePath->setShortcut(QKeySequence(&"Ctrl+"[i]));
+        recentMainImages->addAction(recentFilePath);
+        //recentMainImages->addAction(tr(historyPath.at(i)),recentMainImages);
+    }
+
     fileMenu -> addSeparator();
-    fileMenu -> addAction("Add Another Image ... Ctrl+Shift+G");
+
+    QAction *addImageAction = new QAction(tr("Add Another Image ..."),this);
+    addImageAction -> setShortcut(QKeySequence("Ctrl+Shift+G"));
+    fileMenu -> addAction(addImageAction);
+    // fileMenu -> addAction("Add Another Image ... Ctrl+Shift+G");
     fileMenu -> addSeparator();
     fileMenu -> addAction("Save Image");
     fileMenu -> addSeparator();
@@ -54,7 +90,14 @@ MainWindow::MainWindow(QWidget *parent)
     fileMenu -> addSeparator();
     fileMenu -> addAction("New ITK-SNAP Window");
     fileMenu -> addSeparator();
-    fileMenu -> addAction("Quit Ctrl+Q");
+
+    // 退出按钮
+    QAction *exitAction = new QAction(tr("Quit Ctrl+Q"),this);
+    exitAction->setShortcut(QKeySequence("Ctrl+Q"));
+    exitAction->setStatusTip(tr("Exit the application"));
+    connect(exitAction,&QAction::triggered,this,&QApplication::quit);
+
+    fileMenu -> addAction(exitAction);
     //editMenu
     QAction * undoAction = editMenu -> addAction("Undo Ctrl+Z");
     undoAction -> setIcon(QIcon(":/res/undo.png"));
@@ -233,10 +276,91 @@ MainWindow::MainWindow(QWidget *parent)
     QPixmap scaledPixmap = pixmap.scaled(1800, 800, Qt::KeepAspectRatio, Qt::SmoothTransformation);
     mainLabel->setPixmap(scaledPixmap);
     setCentralWidget(mainLabel);
+
+
+
+
 }
 
 MainWindow::~MainWindow()
 {
     delete ui;
+
+}
+// void MainWindow::on_cancelButton_clicked()
+// {
+//     this->close();
+// }
+
+void MainWindow::on_openImagesAction_clicked()
+{
+    QString fileName=QFileDialog::getOpenFileName(this,"打开文件",QCoreApplication::applicationFilePath(),"*");
+    if(fileName.isEmpty()){
+        //好像用不到
+        QMessageBox::warning(this,"警告","请选择正确的文件");
+    }else{
+        qDebug()<<historyPath;
+        for(const QString &path:historyPath){
+            if(path!=fileName){
+                qDebug()<<"path"<<path;
+                qDebug()<<"path123";
+                qDebug()<<fileName;
+                MainWindow::historyPath.append(fileName);
+                QAction *recentFilePath=new QAction(fileName,this);
+                recentMainImages->addAction(recentFilePath);
+                MainWindow::writeFile(historyPath);
+            }
+        }
+
+        // MainWindow::historyPath.append(fileName);
+        // QAction *recentFilePath=new QAction(fileName,this);
+        // recentMainImages->addAction(recentFilePath);
+        // MainWindow::writeFile(historyPath);
+
+        // qDebug()<<MainWindow::historyPath;
+    }
+}
+
+// void MainWindow::addPathToHistory(const QString &path,QMenu &historyMenu){
+//     if(!historyPath.contains(path)){
+//         historyPath.append(path);
+
+//         QAction *pathAction=new QAction(path,this);
+//         connect(pathAction, &QAction::triggered, this, [this, path]() {
+//             // 这里可以添加当点击历史路径时的处理逻辑
+//             qDebug() << "Selected history path:" << path;
+//         });
+//         historyMenu.addAction(pathAction);
+//     }
+// }
+
+void MainWindow::writeFile(QStringList &pathList){
+    QFile file("D:\\Users\\chillin\\Documents\\code\\Qt\\ITK-SNAP\\res\\recentPath.txt");
+    if(!file.open(QIODevice::WriteOnly | QIODevice::Text)){
+        // 如果文件打开失败，输出错误信息并返回
+        qWarning("Cannot open file for writing");
+        return;
+    }
+
+    QTextStream out(&file);
+    qDebug()<<historyPath;
+    // out<< historyPath.data();
+    for(const QString &line:historyPath){
+        out<<line<<"\n";
+    }
+    file.close(); // 完成写入后关闭文件
+}
+
+void MainWindow::readFile(){
+    QFile file("D:\\Users\\chillin\\Documents\\code\\Qt\\ITK-SNAP\\res\\recentPath.txt");
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        qDebug() << "Cannot open file for reading";
+    }
+    QTextStream in(&file);
+    while(!in.atEnd()){
+        QString line=in.readLine();
+        historyPath<<line;
+    }
+
 
 }
